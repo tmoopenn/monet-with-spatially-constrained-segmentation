@@ -110,10 +110,10 @@ def get_ppo_rollouts(env_name, steps, seed=42, num_processes=1,
     episode_labels = list(chain.from_iterable(episode_labels))
     mean_entropy = torch.stack(entropies).mean()
     mean_episode_reward = np.mean(episode_rewards)
-    try:
-        wandb.log({'action_entropy': mean_entropy, 'mean_reward': mean_episode_reward})
-    except:
-        pass
+    #try:
+    #    wandb.log({'action_entropy': mean_entropy, 'mean_reward': mean_episode_reward})
+    #except:
+    #    pass
 
     return episodes, episode_labels
 
@@ -141,7 +141,7 @@ def get_episodes(env_name,
                                                              downsample=downsample, color=color)
 
     elif collect_mode == "pretrained_ppo":
-        import wandb
+        #import wandb
         # List of episodes. Each episode is a list of 160x210 observations
         episodes, episode_labels = get_ppo_rollouts(env_name=env_name,
                                                    steps=steps,
@@ -161,10 +161,10 @@ def get_episodes(env_name,
     episode_labels = [episode_labels[i] for i in ep_inds]
     episode_labels, entropy_dict = remove_low_entropy_labels(episode_labels, entropy_threshold=entropy_threshold)
 
-    try:
-        wandb.log(entropy_dict)
-    except:
-        pass
+    #try:
+    #    wandb.log(entropy_dict)
+    #except:
+    #    pass
 
     inds = np.arange(len(episodes))
     rng = np.random.RandomState(seed=seed)
@@ -194,9 +194,3 @@ def get_episodes(env_name,
         return episodes, episode_labels
 
 
-def main():
-    ep, ep_labels = get_ppo_rollouts('MsPacmanNoFrameskip-v4', 1000)
-    print(ep_labels)
-    print(ep)
-
-main()

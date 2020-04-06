@@ -2,12 +2,14 @@ import numpy as np
 import torch.nn.functional as F
 from torch.utils.data import RandomSampler, BatchSampler
 import time
+import torch
 from train_options import TrainOptions
 from models import create_model
 from episodes import get_episodes
+import pdb
 #from util.visualizer import Visualizer
 
-def generate_batch(episodes, batch_size):
+def generate_batch(episodes, batch_size, device):
     total_steps = sum([len(e) for e in episodes])
     print('Total Steps: {}'.format(total_steps))
     # Episode sampler
@@ -24,14 +26,15 @@ def generate_batch(episodes, batch_size):
             frame = episode[t]
             ### EXAMPLE RESIZING ### 
             #resized_frame = F.interpolate(frame.unsqueeze(0) / 255.0, size=160, mode='bicubic').squeeze(0)
-            x_t.append(resized_frame)
+            #x_t.append(resized_frame)
+            x_t.append(frame)
         yield torch.stack(x_t).float().to(device) 
 
 if __name__ == '__main__':
     opt = TrainOptions().parse()   # get training options
     #dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
     #dataset_size = len(dataset)    # get the number of images in the dataset.
-    print('The number of training images = %d' % dataset_size)
+    #print('The number of training images = %d' % dataset_size)
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
@@ -45,16 +48,19 @@ if __name__ == '__main__':
 
         if opt.dynamic_datagen:
             episodes = get_episodes(opt.game, opt.epoch_steps)
-            x_batch = generate_batch(episodes, opt.batch_size)
-        dataset = x_batch
+            x_batch = generate_batch(episodes, opt.batch_size, opt.device)
+        #pdb.set_trace()
+        dataset = [frame for frame in x_batch]
+        
 
         for i, data in enumerate(dataset):  # inner loop within one epoch
             iter_start_time = time.time()  # timer for computation per iteration
             if total_iters % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
-            visualizer.reset()
+            #visualizer.reset()
             total_iters += opt.batch_size
             epoch_iter += opt.batch_size
+            #print(data.shape)
             model.set_input(data)         # unpack data from dataset and apply preprocessing
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
 

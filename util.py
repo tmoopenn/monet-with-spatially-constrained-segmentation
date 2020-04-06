@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from PIL import Image
 import os
+import torch.nn.functional as F
 
 
 def tensor2im(input_image, imtype=np.uint8):
@@ -88,3 +89,14 @@ def mkdir(path):
     """
     if not os.path.exists(path):
         os.makedirs(path)
+
+
+def downsample(frames):
+    '''
+    Built specifically for downsampling atari frames to 128 x 128 
+    Parameters:
+        frame (tensor) -- tensor of shape n x c x h x w
+    '''
+    #frames_tensor = torch.stack(frames)
+    downsampled = F.interpolate(frames / 255.0, size=64, mode='nearest')
+    return downsampled * 255.0

@@ -24,6 +24,7 @@ class BaseOptions():
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         parser.add_argument('--dynamic_datagen', type=bool, default=True, help='flag indicating whether train batches will be generated dynamically')
+        parser.add_argument('--device', type=str, default='cuda', help='device to push tensors')
 
         # model parameters
         parser.add_argument('--model', type=str, default='monet', help='chooses which model to use. [cycle_gan | pix2pix | test | colorization]')

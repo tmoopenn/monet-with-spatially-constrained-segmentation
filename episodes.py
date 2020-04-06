@@ -6,6 +6,7 @@ Unsupervised State Representation Learning in Atari (https://arxiv.org/abs/1906.
 import torch.nn.functional as F
 import torch
 import numpy as np
+import util
 
 from atariari.benchmark.episodes import get_ppo_rollouts, get_random_agent_rollouts 
 
@@ -29,7 +30,7 @@ def get_episodes(env_name,
                                                              seed=seed,
                                                              num_processes=num_processes,
                                                              num_frame_stack=num_frame_stack,
-                                                             downsample=downsample, color=color)
+                                                             downsample=False, color=color)
 
     elif collect_mode == "pretrained_ppo":
         # List of episodes. Each episode is a list of 160x210 observations
@@ -38,7 +39,7 @@ def get_episodes(env_name,
                                                    seed=seed,
                                                    num_processes=num_processes,
                                                    num_frame_stack=num_frame_stack,
-                                                   downsample=downsample,
+                                                   downsample=False,
                                                    color=color,
                                                    checkpoint_index=checkpoint_index)
 
@@ -55,8 +56,13 @@ def get_episodes(env_name,
     rng = np.random.RandomState(seed=seed)
     rng.shuffle(inds)
 
-    episodes = episodes[inds]
+    episodes = [torch.stack(episode) for episode in episodes]
+    if downsample:
+          episodes = [util.downsample(episode) for episode in episodes]
 
+    #episodes = episodes[inds]
+    print("Number of Episodes:", len(episodes))
+    print("Frame shape:", episodes[0][0].shape)
     return episodes
 
 

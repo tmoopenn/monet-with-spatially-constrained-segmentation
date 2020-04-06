@@ -11,6 +11,7 @@ from skimage.io import imsave
 import pdb
 import tensorflow as tf
 import torch.nn.functional as F
+import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ep', default='100', help='Number of atari episode simultations to run')
@@ -87,10 +88,11 @@ if __name__=="__main__":
     print(eps[0][0].numpy().shape)
     plt.imshow(frame)
     plt.show()
-    image_tensor = eps[0][0].unsqueeze(0)
-    print(image_tensor.shape)
+    #image_tensor = eps[0][0].unsqueeze(0)
+    image_tensors = torch.stack(eps[0])
+    print(image_tensors.shape)
     #cropped = tf.image.crop_to_bounding_box(np.expand_dims(image, axis=len(image.shape)-1), 34, 0, 160, 160)
-    resized = F.interpolate(image_tensor / 255.0, size=160, mode='bicubic')
+    resized = F.interpolate(image_tensors / 255.0, size=64, mode='nearest')
     print(resized.shape, resized.dtype)
     print(resized)
     plt.imshow(resized.squeeze(0).squeeze(0).numpy() * 255)
