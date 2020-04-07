@@ -1,6 +1,4 @@
-# use pyenv to configure global python environment 
-curl https://pyenv.run | bash
-exec
+# setup pyenv
 pyenv install 3.7-dev
 pyenv global 3.7-dev
 
