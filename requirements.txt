@@ -2,4 +2,5 @@ gym[atari]
 wandb
 opencv-python
 scikit-learn
-torch
+torch==1.4.0
+numpy
