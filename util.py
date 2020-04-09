@@ -100,3 +100,12 @@ def downsample(frames):
     #frames_tensor = torch.stack(frames)
     downsampled = F.interpolate(frames / 255.0, size=64, mode='nearest')
     return downsampled * 255.0
+
+def visualize_frame(frame):
+    '''
+    Assume frame is normalized and a torch tensor of shape (c, h, w)
+    '''
+    import matplotlib.pyplot as plt 
+    f = frame.permute(1,2,0).numpy()
+    plt.imshow(f)
+    plt.show(f)

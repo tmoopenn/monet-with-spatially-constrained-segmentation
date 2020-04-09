@@ -28,7 +28,7 @@ class MONetModel(BaseModel):
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--game', type=str, default='PitfallNoFrameskip-v4', help='Atari game to gather frames from')
-        parser.add_argument('--epoch-steps', type=int, default=100, help='Total number of steps to collect across episodes')
+        parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
             parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
@@ -63,9 +63,9 @@ class MONetModel(BaseModel):
         Parameters:
             input: a dictionary that contains the data itself and its metadata information.
         """
-        #self.x = input['A'].to(self.device)
+        self.x = input['A'].to(self.device)
         #self.image_paths = input['A_paths']
-        self.x = input.to(self.device)
+        #self.x = input.to(self.device)
 
     def forward(self):
         """Run forward pass. This will be called by both functions <optimize_parameters> and <test>."""

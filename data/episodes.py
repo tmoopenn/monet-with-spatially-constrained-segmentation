@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 import util
-
+import pdb
 from atariari.benchmark.episodes import get_ppo_rollouts, get_random_agent_rollouts 
 
 
@@ -16,7 +16,7 @@ def get_episodes(env_name,
                  seed=42,
                  num_processes=1,
                  num_frame_stack=1,
-                 downsample=True,
+                 downsample=False,
                  color=True,
                  entropy_threshold=0.6,
                  collect_mode="random_agent",
@@ -61,6 +61,7 @@ def get_episodes(env_name,
           episodes = [util.downsample(episode) for episode in episodes]
 
     #episodes = episodes[inds]
+    #pdb.set_trace()
     print("Number of Episodes:", len(episodes))
     print("Frame shape:", episodes[0][0].shape)
     return episodes
