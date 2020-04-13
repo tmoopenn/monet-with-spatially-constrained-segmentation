@@ -7,3 +7,6 @@ Run the pyenv setup script
 
 Run the setup script 
 `./setup.sh`
+## Visualize
+Start the visdom server before starting the training
+`python -m visdom.server`
