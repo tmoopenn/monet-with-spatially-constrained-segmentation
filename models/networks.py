@@ -247,9 +247,9 @@ class Attention(nn.Module):
         self.downblock2 = AttentionBlock(ngf, ngf * 2)
         self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
-        self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        self.downblock5 = AttentionBlock(ngf * 8, ngf * 8)
         # no resizing occurs in the last block of each path
-        # self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
 
         self.mlp = nn.Sequential(
             nn.Linear(4 * 4 * ngf * 8, 128),
@@ -260,7 +260,7 @@ class Attention(nn.Module):
             nn.ReLU(),
         )
 
-        # self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
+        self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock2 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
         self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
