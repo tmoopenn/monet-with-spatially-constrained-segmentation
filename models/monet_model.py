@@ -29,6 +29,7 @@ class MONetModel(BaseModel):
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--game', type=str, default='SpaceInvadersNoFrameskip-v0', help='Atari game to gather frames from')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
+        parser.add_argument('--full_res', type=bool, default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
             parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
@@ -50,7 +51,7 @@ class MONetModel(BaseModel):
                             ['x', 'x_tilde']
         self.model_names = ['Attn', 'CVAE']
         self.netAttn = networks.init_net(networks.Attention(opt.input_nc, 1), gpu_ids=self.gpu_ids)
-        self.netCVAE = networks.init_net(networks.ComponentVAE(opt.input_nc, opt.z_dim), gpu_ids=self.gpu_ids)
+        self.netCVAE = networks.init_net(networks.ComponentVAE(opt.input_nc, opt.z_dim, opt.full_res), gpu_ids=self.gpu_ids)
         self.eps = torch.finfo(torch.float).eps
         # define networks; you can use opt.isTrain to specify different behaviors for training and test.
         if self.isTrain:  # only defined during training time

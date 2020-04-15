@@ -128,7 +128,7 @@ class Flatten(nn.Module):
 
 class ComponentVAE(nn.Module):
 
-    def __init__(self, input_nc, z_dim=16, full_res=False):
+    def __init__(self, input_nc, z_dim=16, full_res=True):
         super().__init__()
         self._input_nc = input_nc
         self._z_dim = z_dim
@@ -247,9 +247,9 @@ class Attention(nn.Module):
         self.downblock2 = AttentionBlock(ngf, ngf * 2)
         self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
-        self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=True)
         # no resizing occurs in the last block of each path
-        # self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
 
         self.mlp = nn.Sequential(
             nn.Linear(4 * 4 * ngf * 8, 128),
@@ -260,7 +260,7 @@ class Attention(nn.Module):
             nn.ReLU(),
         )
 
-        # self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
+        self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock2 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
         self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
@@ -279,14 +279,14 @@ class Attention(nn.Module):
         x, skip5 = self.downblock5(x)
         skip6 = skip5
         # The input to the MLP is the last skip tensor collected from the downsampling path (after flattening)
-        # _, skip6 = self.downblock6(x)
+        _, skip6 = self.downblock6(x)
         # Flatten
         x = skip6.flatten(start_dim=1)
         x = self.mlp(x)
         # Reshape to match shape of last skip tensor
         x = x.view(skip6.shape)
         # Upsampling blocks
-        # x = self.upblock1(x, skip6)
+        x = self.upblock1(x, skip6)
         x = self.upblock2(x, skip5)
         x = self.upblock3(x, skip4)
         x = self.upblock4(x, skip3)
