@@ -17,9 +17,9 @@ class AtariDataset(BaseDataset):
     @staticmethod
     def modify_commandline_options(parser, is_train):
         parser.set_defaults(input_nc=3, output_nc=3,
-                            crop_size=160, # crop is done first
-                            load_size=64,  # before resize
-                            num_slots=11, display_ncols=11)
+                            crop_size=180, # crop is done first
+                            load_size=128,  # before resize
+                            num_slots=7, display_ncols=7)
         return parser
 
     def __init__(self, opt):
@@ -38,7 +38,7 @@ class AtariDataset(BaseDataset):
         '''
         # crop at top left corner (0,34) for crop box size of (self.opt.crop_size, self.opt.crop_size) then resize cropped image to self.opt.load_size 
         # expects image in PIL format 
-        img = TF.resized_crop(img, 34, 0, self.opt.crop_size, self.opt.crop_size, self.opt.load_size, Image.NEAREST)
+        img = TF.resized_crop(img,  20, 0, self.opt.crop_size, self.opt.crop_size, self.opt.load_size, Image.BILINEAR)
         img = TF.to_tensor(img)
 
         # should we normalize with mean of 0 and st.dev 1??

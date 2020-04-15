@@ -63,7 +63,7 @@ def get_episodes(env_name,
     #episodes = episodes[inds]
     #pdb.set_trace()
     print("Number of Episodes:", len(episodes))
-    print("Frame shape:", episodes[0][0].shape)
+    #print("Frame shape:", episodes[0][0].shape)
     return episodes
 
 
