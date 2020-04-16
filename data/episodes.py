@@ -51,10 +51,20 @@ def get_episodes(env_name,
     ep_inds = [i for i in range(len(episodes)) if len(episodes[i]) > min_episode_length]
     episodes = [episodes[i] for i in ep_inds]
     
+    num_episodes = len(episodes)
+    # rerun rollout if we didn't get sufficient frames 
+    while num_episodes == 0:
+      print("------Rerunning collection to get sufficient frames------")
+      episodes, episode_labels = get_random_agent_rollouts(env_name=env_name, steps=steps, seed=seed, num_processes=num_processes,
+                                                             num_frame_stack=num_frame_stack, downsample=False, color=color)
+      ep_inds = [i for i in range(len(episodes)) if len(episodes[i]) > min_episode_length]
+      episodes = [episodes[i] for i in ep_inds]
+      num_episodes = len(episodes)
+
     # Shuffle
-    inds = np.arange(len(episodes))
-    rng = np.random.RandomState(seed=seed)
-    rng.shuffle(inds)
+    # inds = np.arange(len(episodes))
+    # rng = np.random.RandomState(seed=seed)
+    # rng.shuffle(inds)
 
     episodes = [torch.stack(episode) for episode in episodes]
     if downsample:
