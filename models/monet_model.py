@@ -27,7 +27,6 @@ class MONetModel(BaseModel):
                             dataset_mode='atari', niter=int(64e6 // 7e4))
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
-        parser.add_argument('--game', type=str, default='SpaceInvadersNoFrameskip-v0', help='Atari game to gather frames from')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
         parser.add_argument('--full_res', type=bool, default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
         if is_train:

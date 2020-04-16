@@ -20,6 +20,8 @@ class AtariDataset(BaseDataset):
                             crop_size=180, # crop is done first
                             load_size=128,  # before resize
                             num_slots=7, display_ncols=7)
+        parser.add_argument('--collect_mode', type=str, default='random_agent', help='Specifies whether agent in atari should be random or pretrained agent (pretrained_ppo)')
+        parser.add_argument('--game', type=str, default='SpaceInvadersNoFrameskip-v4', help='Atari game to gather frames from')
         return parser
 
     def __init__(self, opt):
@@ -68,7 +70,7 @@ class AtariDataset(BaseDataset):
         returns: [tensor (c,h,w)] -> a list of 3D tensors where each tensor represents a frame
         '''
         # [[torch tensors (3, h, w)]]
-        episodes = get_episodes(self.opt.game, self.opt.epoch_steps)
+        episodes = get_episodes(self.opt.game, self.opt.epoch_steps, collect_mode=self.opt.collect_mode)
         total_steps = sum([len(e) for e in episodes])
         print('Total Steps: {}'.format(total_steps))
         all_frames = []
