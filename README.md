@@ -1,12 +1,10 @@
 # unsupervised-object-detection-with-rpn
 ## Setup Details 
-This repository utilizes pyenv to configure the global python environment. A setup script is provided to configure the python environment and install dependencies.
+This repository is developed and tested with python 3.7.3. If you are missing python header files, install python 3.7-dev
 
-Run the pyenv setup script 
-`./pyenv_setup.sh`
-
-Run the setup script 
+Run the setup script   
 `./setup.sh`
+
 ## Visualize
-Start the visdom server before starting the training
+Start the visdom server before starting the training  
 `python -m visdom.server`
