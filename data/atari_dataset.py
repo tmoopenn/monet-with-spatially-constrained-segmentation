@@ -18,7 +18,7 @@ class AtariDataset(BaseDataset):
     def modify_commandline_options(parser, is_train):
         parser.set_defaults(input_nc=3, output_nc=3,
                             crop_size=180, # crop is done first
-                            load_size=128,  # before resize
+                            load_size=64,  # before resize
                             num_slots=7, display_ncols=7)
         parser.add_argument('--collect_mode', type=str, default='random_agent', help='Specifies whether agent in atari should be random or pretrained agent (pretrained_ppo)')
         parser.add_argument('--game', type=str, default='SpaceInvadersNoFrameskip-v4', help='Atari game to gather frames from')
@@ -30,7 +30,11 @@ class AtariDataset(BaseDataset):
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
         """
         BaseDataset.__init__(self, opt)
-        self.A_imgs = self.generate_epoch_episodes()
+        self.use_pednet = opt.use_pednet
+        if opt.use_pednet:
+            self.A_imgs = self.generate_epoch_episodes_multi_frame()
+        else:
+            self.A_imgs = self.generate_epoch_episodes()
 
     def _transform(self, img):
         '''
@@ -56,8 +60,15 @@ class AtariDataset(BaseDataset):
             A_paths(str) - - the path of the image
         """
         A_img = self.A_imgs[index]
+        if self.use_pednet:
+            A_img_prev, A_img_t, A_img_next = A_img[:3,:,:], A_img[3:6,:,:], A_img[6:,:,:]
+            A_img_prev, A_img_t, A_img_next = TF.to_pil_image(A_img_prev), TF.to_pil_image(A_img_t), TF.to_pil_image(A_img_next)
+            A_prev, A_t, A_next = self._transform(A_img_prev), self._transform(A_img_t), self._transform(A_img_next)
+            A = torch.cat((A_prev, A_t, A_next),0)
+            return {'A':A, 'A_paths':""}
         A_img = TF.to_pil_image(A_img)
         A = self._transform(A_img)
+        print(A.shape)
         return {'A': A, 'A_paths': ""}
 
     def __len__(self):
@@ -78,6 +89,24 @@ class AtariDataset(BaseDataset):
             for frame in episode:
                 all_frames.append(frame)
         return all_frames
+
+    def generate_epoch_episodes_multi_frame(self):
+        '''
+        Generates a list of sequential frames across different episodes 
+        returns: [tensor (c,h,w)] -> a list of 3D tensors where each tensor represents a frame
+        '''
+        # [[torch tensors (3, h, w)]]
+        episodes = get_episodes(self.opt.game, self.opt.epoch_steps, collect_mode=self.opt.collect_mode)
+        total_steps = sum([len(e) for e in episodes])
+        print('Total Steps: {}'.format(total_steps))
+        all_frames = []
+        for episode in episodes:
+            for i in range(0,len(episode)-3,3):
+                x_prev, xt, x_next = episode[i:i+3]
+                x = torch.cat((x_prev, xt, x_next),0)
+                all_frames.append(x)
+        return all_frames
+                
     
     def generate_epoch_episodes_in_batches(self):
         '''

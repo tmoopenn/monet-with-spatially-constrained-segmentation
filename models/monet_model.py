@@ -28,7 +28,8 @@ class MONetModel(BaseModel):
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
-        parser.add_argument('--full_res', type=bool, default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--full_res', type=bool, default=False, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
             parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
@@ -49,7 +50,11 @@ class MONetModel(BaseModel):
                             ['xm{}'.format(i) for i in range(opt.num_slots)] + \
                             ['x', 'x_tilde']
         self.model_names = ['Attn', 'CVAE']
-        self.netAttn = networks.init_net(networks.Attention(opt.input_nc, 1), gpu_ids=self.gpu_ids)
+        self.use_pednet = opt.use_pednet
+        if opt.use_pednet:
+            self.netAttn = networks.init_net(networks.PedNet(opt.input_nc,1), gpu_ids=self.gpu_ids)
+        else:
+            self.netAttn = networks.init_net(networks.Attention(opt.input_nc, 1), gpu_ids=self.gpu_ids)
         self.netCVAE = networks.init_net(networks.ComponentVAE(opt.input_nc, opt.z_dim, opt.full_res), gpu_ids=self.gpu_ids)
         self.eps = torch.finfo(torch.float).eps
         # define networks; you can use opt.isTrain to specify different behaviors for training and test.
@@ -63,9 +68,8 @@ class MONetModel(BaseModel):
         Parameters:
             input: a dictionary that contains the data itself and its metadata information.
         """
+        
         self.x = input['A'].to(self.device)
-        #self.image_paths = input['A_paths']
-        #self.x = input.to(self.device)
 
     def forward(self):
         """Run forward pass. This will be called by both functions <optimize_parameters> and <test>."""
@@ -83,7 +87,11 @@ class MONetModel(BaseModel):
         for k in range(self.opt.num_slots):
             # Derive mask from current scope
             if k != self.opt.num_slots - 1:
-                log_alpha_k = self.netAttn(self.x, log_s_k)
+                if self.use_pednet:
+                    x_prev, xt, x_next = self.x[:,:3,:,:], self.x[:,3:6,:,:], self.x[:,6:,:,:]
+                    log_alpha_k = self.netAttn(x_prev, xt, x_next, log_s_k)
+                else:
+                    log_alpha_k = self.netAttn(self.x, log_s_k)
                 log_m_k = log_s_k + log_alpha_k
                 # Compute next scope
                 log_s_k += (1. - log_alpha_k.exp()).clamp(min=self.eps).log()
@@ -91,7 +99,11 @@ class MONetModel(BaseModel):
                 log_m_k = log_s_k
 
             # Get component and mask reconstruction, as well as the z_k parameters
-            m_tilde_k_logits, x_mu_k, x_logvar_k, z_mu_k, z_logvar_k = self.netCVAE(self.x, log_m_k, k == 0)
+            if self.use_pednet:
+                x = self.x[:,3:6,:,:]
+                m_tilde_k_logits, x_mu_k, x_logvar_k, z_mu_k, z_logvar_k = self.netCVAE(x, log_m_k, k == 0)
+            else:
+                m_tilde_k_logits, x_mu_k, x_logvar_k, z_mu_k, z_logvar_k = self.netCVAE(self.x, log_m_k, k == 0)
             
             # Solution for minimizing negative ELBO in the case of diagonal multivariate normal (approximation ) and normal distribution (target)
             # ∑ -1/2(1 + log(sigma^2) - mu^2 - sigma^2)
@@ -102,7 +114,10 @@ class MONetModel(BaseModel):
             x_k_masked = m_k * x_mu_k
 
             # Exponents for the decoder loss
-            b_k = log_m_k - 0.5 * x_logvar_k - (self.x - x_mu_k).pow(2) / (2 * x_logvar_k.exp())
+            if self.use_pednet:
+                b_k = log_m_k - 0.5 * x_logvar_k - (self.x[:,3:6,:,:] - x_mu_k).pow(2) / (2 * x_logvar_k.exp())
+            else:
+                b_k = log_m_k - 0.5 * x_logvar_k - (self.x - x_mu_k).pow(2) / (2 * x_logvar_k.exp())
             b.append(b_k.unsqueeze(1))
 
             # Get outputs for kth step

@@ -128,7 +128,7 @@ class Flatten(nn.Module):
 
 class ComponentVAE(nn.Module):
 
-    def __init__(self, input_nc, z_dim=16, full_res=True):
+    def __init__(self, input_nc, z_dim=16, full_res=False):
         super().__init__()
         self._input_nc = input_nc
         self._z_dim = z_dim
@@ -287,6 +287,132 @@ class Attention(nn.Module):
         x = x.view(skip6.shape)
         # Upsampling blocks
         x = self.upblock1(x, skip6)
+        x = self.upblock2(x, skip5)
+        x = self.upblock3(x, skip4)
+        x = self.upblock4(x, skip3)
+        x = self.upblock5(x, skip2)
+        x = self.upblock6(x, skip1)
+        # Output layer
+        x = self.output(x)
+        x = F.logsigmoid(x)
+        return x
+
+class PedNetBaseConvBlock(nn.Module):
+
+    def __init__(self, input_nc, output_nc):
+        super(PedNetBaseConvBlock, self).__init__()
+        self.conv = nn.Conv2d(input_nc, output_nc, 3, padding=1, bias=False)
+        self.norm = nn.InstanceNorm2d(output_nc, affine=True)
+    
+    def forward(self, input):
+        x = self.conv(input)
+        x = self.norm(x)
+        return x 
+
+class PedNetEarlyConvBlock(nn.Module):
+    
+    def __init__(self, input_nc, output_nc):
+        super(PedNetEarlyConvBlock, self).__init__()
+        self.ped1 = PedNetBaseConvBlock(input_nc, output_nc)
+        self.ped2 = PedNetBaseConvBlock(output_nc, output_nc)
+    
+    def forward(self, input):
+        x = self.ped1(input)
+        x = self.ped2(x)
+        return x 
+
+class PedNet(nn.Module):
+    '''
+    Ullah, Mohib et al. "Pednet: A spatio-temporal deep convolutional neural network for pedestrian segmentation."
+    '''
+
+    def __init__(self, input_nc, output_nc, ngf=32, use_scope=True, prev_timestep_nc=8,
+        curr_timestep_nc=32, next_timestep_nc=8):
+        """Construct a PedNet Segmentation Network
+        Parameters:
+            input_nc (int)         -- the number of channels in input images
+            output_nc (int)        -- the number of channels in output images
+            num_downs (int)        -- the number of downsamplings in PedNet. For example, # if |num_downs| == 7,
+                                    image of size 128x128 will become of size 1x1 # at the bottleneck
+            ngf (int)              -- the number of filters in the last conv layer
+            use_scope (bool)       -- flag indicating whether additional scope channel will be added to input 
+            prev_timestep_nc (int) -- the number of channels in conv block for frame at timestep t-1 
+            curr_timestep_nc (int) -- the number of channels in conv block for frame at timestep t 
+            next_timestep_nc (int) -- the number of channels in conv block for frame at timestep t+1 
+           
+        We construct the U-Net from the innermost layer to the outermost layer.
+        It is a recursive process.
+        """
+        super(PedNet, self).__init__()
+        self.use_scope = use_scope
+        
+        self.pedblock_prev = PedNetEarlyConvBlock(input_nc, prev_timestep_nc)
+        self.pedblock_curr = PedNetEarlyConvBlock(input_nc, curr_timestep_nc)
+        self.pedblock_next = PedNetEarlyConvBlock(input_nc, next_timestep_nc)
+        #self.pedblock_final_conv = PedNetBaseConvBlock(prev_timestep_nc + curr_timestep_nc + next_timestep_nc, input_down_nc)
+        input_down_nc = prev_timestep_nc + curr_timestep_nc + next_timestep_nc
+
+        if use_scope:
+            self.downblock1 = AttentionBlock(input_down_nc + 1, ngf)
+        else:
+            self.downblock1 = AttentionBlock(input_down_nc, ngf)
+        self.downblock2 = AttentionBlock(ngf, ngf * 2)
+        self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
+        self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
+        self.downblock5 = AttentionBlock(ngf * 8, ngf * 16, resize=False)
+        # no resizing occurs in the last block of each path
+        #self.downblock6 = AttentionBlock(ngf * 16, ngf * 16, resize=False)
+
+        self.mlp = nn.Sequential(
+            nn.Linear(4 * 4 * ngf * 16, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 4 * 4 * ngf * 16),
+            nn.ReLU(),
+        )
+
+        #self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
+        self.upblock2 = AttentionBlock(2 * ngf * 16, ngf * 8)
+        self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
+        self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
+        self.upblock5 = AttentionBlock(2 * ngf * 2, ngf)
+        # no resizing occurs in the last block of each path
+        self.upblock6 = AttentionBlock(2 * ngf, ngf, resize=False)
+
+        self.output = nn.Conv2d(ngf, output_nc, 1)
+    
+    def forward(self, xt_prev, xt, xt_next, log_s_k):
+        # PedNet Early Blocks 
+        x_prev = self.pedblock_prev(xt_prev) # x[:,:3,:,:]
+        x_curr = self.pedblock_curr(xt) # x[:,3:6,:,:]
+        x_next = self.pedblock_next(xt_next) # x[:,6:,:,:]
+
+        # Concatenate feature maps from all three frames 
+        x = torch.cat((x_prev, x_curr, x_next), dim=1)
+
+        # Compress concatenated feature maps from input frames 
+        #x = self.pedblock_final_conv(x)
+
+        # Downsampling blocks
+        if self.use_scope:
+            x, skip1 = self.downblock1(torch.cat((x, log_s_k), dim=1))
+        else:
+            x, skip1 = self.downblock1(x)
+        x, skip2 = self.downblock2(x)
+        x, skip3 = self.downblock3(x)
+        x, skip4 = self.downblock4(x)
+        x, skip5 = self.downblock5(x)
+        skip6 = skip5
+        # The input to the MLP is the last skip tensor collected from the downsampling path (after flattening)
+        #_, skip6 = self.downblock6(x)
+        # Flatten
+        x = skip6.flatten(start_dim=1)
+        x = self.mlp(x)
+        # Reshape to match shape of last skip tensor
+        x = x.view(skip6.shape)
+        # Upsampling blocks
+        #x = self.upblock1(x, skip6)
         x = self.upblock2(x, skip5)
         x = self.upblock3(x, skip4)
         x = self.upblock4(x, skip3)
