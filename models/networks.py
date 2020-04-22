@@ -359,20 +359,20 @@ class PedNet(nn.Module):
         self.downblock2 = AttentionBlock(ngf, ngf * 2)
         self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
-        self.downblock5 = AttentionBlock(ngf * 8, ngf * 16, resize=False)
+        self.downblock5 = AttentionBlock(ngf * 8, ngf * 16, resize=True)
         # no resizing occurs in the last block of each path
-        #self.downblock6 = AttentionBlock(ngf * 16, ngf * 32, resize=False)
+        self.downblock6 = AttentionBlock(ngf * 16, ngf * 32, resize=False)
 
         self.mlp = nn.Sequential(
-            nn.Linear(4 * 4 * ngf * 16, 128),
+            nn.Linear(4 * 4 * ngf * 32, 128),
             nn.ReLU(),
             nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(128, 4 * 4 * ngf * 16),
+            nn.Linear(128, 4 * 4 * ngf * 32),
             nn.ReLU(),
         )
 
-        #self.upblock1 = AttentionBlock(2 * ngf * 32, ngf * 16)
+        self.upblock1 = AttentionBlock(2 * ngf * 32, ngf * 16)
         self.upblock2 = AttentionBlock(2 * ngf * 16, ngf * 8)
         self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
         self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
@@ -405,14 +405,14 @@ class PedNet(nn.Module):
         x, skip5 = self.downblock5(x)
         skip6 = skip5
         # The input to the MLP is the last skip tensor collected from the downsampling path (after flattening)
-        #_, skip6 = self.downblock6(x)
+        _, skip6 = self.downblock6(x)
         # Flatten
         x = skip6.flatten(start_dim=1)
         x = self.mlp(x)
         # Reshape to match shape of last skip tensor
         x = x.view(skip6.shape)
         # Upsampling blocks
-        #x = self.upblock1(x, skip6)
+        x = self.upblock1(x, skip6)
         x = self.upblock2(x, skip5)
         x = self.upblock3(x, skip4)
         x = self.upblock4(x, skip3)

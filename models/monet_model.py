@@ -28,7 +28,7 @@ class MONetModel(BaseModel):
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
-        parser.add_argument('--full_res', type=bool, default=False, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--full_res', action='store_true', default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
         
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
@@ -50,7 +50,7 @@ class MONetModel(BaseModel):
             self.visual_names = ['m{}'.format(i) for i in range(opt.num_slots)] + \
                                 ['x{}'.format(i) for i in range(opt.num_slots)] + \
                                 ['xm{}'.format(i) for i in range(opt.num_slots)] + \
-                                ['x_prev','x_t', 'x_next' 'x_tilde']
+                                ['x_prev','x_t', 'x_next', 'x_tilde']
         else:
             self.visual_names = ['m{}'.format(i) for i in range(opt.num_slots)] + \
                             ['x{}'.format(i) for i in range(opt.num_slots)] + \
