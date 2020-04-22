@@ -361,7 +361,7 @@ class PedNet(nn.Module):
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
         self.downblock5 = AttentionBlock(ngf * 8, ngf * 16, resize=False)
         # no resizing occurs in the last block of each path
-        #self.downblock6 = AttentionBlock(ngf * 16, ngf * 16, resize=False)
+        #self.downblock6 = AttentionBlock(ngf * 16, ngf * 32, resize=False)
 
         self.mlp = nn.Sequential(
             nn.Linear(4 * 4 * ngf * 16, 128),
@@ -372,7 +372,7 @@ class PedNet(nn.Module):
             nn.ReLU(),
         )
 
-        #self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
+        #self.upblock1 = AttentionBlock(2 * ngf * 32, ngf * 16)
         self.upblock2 = AttentionBlock(2 * ngf * 16, ngf * 8)
         self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
         self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
