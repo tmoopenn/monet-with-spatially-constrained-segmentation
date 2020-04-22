@@ -5,6 +5,7 @@ from torch.utils.data import RandomSampler, BatchSampler
 import torch
 import util 
 
+from data.image_folder import make_dataset
 from data.base_dataset import BaseDataset
 from PIL import Image
 from .episodes import get_episodes
@@ -22,6 +23,7 @@ class AtariDataset(BaseDataset):
                             num_slots=7, display_ncols=7)
         parser.add_argument('--collect_mode', type=str, default='random_agent', help='Specifies whether agent in atari should be random or pretrained agent (pretrained_ppo)')
         parser.add_argument('--game', type=str, default='SpaceInvadersNoFrameskip-v4', help='Atari game to gather frames from')
+        parser.add_argument('--dynamic_datagen', action='store_true', help='flag indicating whether train batches will be generated dynamically')
         return parser
 
     def __init__(self, opt):
@@ -31,10 +33,19 @@ class AtariDataset(BaseDataset):
         """
         BaseDataset.__init__(self, opt)
         self.use_pednet = opt.use_pednet
-        if opt.use_pednet:
-            self.A_imgs = self.generate_epoch_episodes_multi_frame()
+        self.dynamic_datagen = opt.dynamic_datagen
+        self.A_paths = None
+        if opt.dynamic_datagen:
+            if opt.use_pednet:
+                self.A_imgs = self.generate_epoch_episodes_multi_frame()
+            else:
+                self.A_imgs = self.generate_epoch_episodes()
         else:
-            self.A_imgs = self.generate_epoch_episodes()
+            BaseDataset.__init__(self, opt)
+            p = os.path.join(opt.dataroot, 'images', 'train' if opt.isTrain else 'test')
+            self.A_paths = sorted(make_dataset(p, opt.max_dataset_size))
+            if opt.use_pednet:
+                self.A_paths = [self.A_paths[i:i+3] for i in range(len(self.A_paths)-3)]
 
     def _transform(self, img):
         '''
@@ -59,21 +70,38 @@ class AtariDataset(BaseDataset):
             A(tensor) - - an image in one domain
             A_paths(str) - - the path of the image
         """
-        A_img = self.A_imgs[index]
+        path = ""
         if self.use_pednet:
-            A_img_prev, A_img_t, A_img_next = A_img[:3,:,:], A_img[3:6,:,:], A_img[6:,:,:]
-            A_img_prev, A_img_t, A_img_next = TF.to_pil_image(A_img_prev), TF.to_pil_image(A_img_t), TF.to_pil_image(A_img_next)
+            if not self.dynamic_datagen:
+                A_path = self.A_paths[index]
+                path = A_path
+                A_img_prev, A_img_t, A_img_next = Image.open(A_path[0]).convert('RGB'), Image.open(A_path[1]).convert('RGB'), \
+                                Image.open(A_path[2]).convert('RGB')
+            else:
+                A_img = self.A_imgs[index]
+                A_img_prev, A_img_t, A_img_next = A_img[:3,:,:], A_img[3:6,:,:], A_img[6:,:,:]
+                A_img_prev, A_img_t, A_img_next = TF.to_pil_image(A_img_prev), TF.to_pil_image(A_img_t), TF.to_pil_image(A_img_next)
             A_prev, A_t, A_next = self._transform(A_img_prev), self._transform(A_img_t), self._transform(A_img_next)
             A = torch.cat((A_prev, A_t, A_next),0)
-            return {'A':A, 'A_paths':""}
-        A_img = TF.to_pil_image(A_img)
-        A = self._transform(A_img)
-        print(A.shape)
-        return {'A': A, 'A_paths': ""}
+            return {'A':A, 'A_paths':path}
+        else:
+            if not self.dynamic_datagen:
+                A_path = self.A_paths[index]
+                path = A_path
+                A_img = Image.open(A_path).convert('RGB')
+            else:
+                A_img = self.A_imgs[index]
+                A_img = TF.to_pil_image(A_img)
+            A = self._transform(A_img)
+            path = "" if not self.A_paths else self.A_paths
+            return {'A': A, 'A_paths': path} 
+      
 
     def __len__(self):
         """Return the total number of images in the dataset."""
-        return len(self.A_imgs)
+        if self.dynamic_datagen:
+            return len(self.A_imgs)
+        return len(self.A_paths)
     
     def generate_epoch_episodes(self):
         '''

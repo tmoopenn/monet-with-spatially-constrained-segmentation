@@ -68,8 +68,8 @@ class MONetModel(BaseModel):
         Parameters:
             input: a dictionary that contains the data itself and its metadata information.
         """
-        
         self.x = input['A'].to(self.device)
+        self.image_paths = input['A_paths']
 
     def forward(self):
         """Run forward pass. This will be called by both functions <optimize_parameters> and <test>."""
