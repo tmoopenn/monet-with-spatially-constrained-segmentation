@@ -414,7 +414,7 @@ class Decoder(snt.Module):
             stride=1,
             regularizers=regularizers,
             name="conv_{}".format(layer))
-        norm_module = self._norm_ctor(name="normalization")
+        norm_module = self._norm_ctor(name="normalization", create_scale=True, create_offset=True)
 
       features = conv1(features)
       features = _connect_module_with_kwarg_if_supported(
