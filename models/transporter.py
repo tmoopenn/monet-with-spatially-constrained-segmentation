@@ -22,10 +22,9 @@ import functools
 
 import sonnet as snt
 import tensorflow.compat.v1 as tf
-from tensorflow.contrib import framework as contrib_framework
-from tensorflow.contrib import layers as contrib_layers
+import tree
 
-nest = contrib_framework.nest
+nest = tree
 
 # Paper submission used BatchNorm, but we have since found that Layer & Instance
 # norm can be quite a lot more stable.
@@ -191,7 +190,7 @@ class Encoder(snt.AbstractModule):
       A tensor of features of shape [B, F_h, F_w, N] where F_h and F_w are the
        height and width of the feature map and N = 4 * `self._filters`
     """
-    regularizers = {"w": contrib_layers.l2_regularizer(1.0)}
+    regularizers = {"w": tf.keras.regularizers.l2(1.0)}
 
     features = image
     for l in range(len(self._filters)):
@@ -259,7 +258,7 @@ class KeyPointer(snt.AbstractModule):
     conv = snt.Conv2D(
         self._num_keypoints, [1, 1],
         stride=1,
-        regularizers={"w": contrib_layers.l2_regularizer(1.0)},
+        regularizers={"w": tf.keras.regularizers.l2(1.0)},
         name="conv_1/conv_1")
 
     image_features = self._keypoint_encoder(image, is_training=is_training)
@@ -402,7 +401,7 @@ class Decoder(snt.AbstractModule):
     height, width = features.shape.as_list()[1:3]
 
     filters = self._initial_filters
-    regularizers = {"w": contrib_layers.l2_regularizer(1.0)}
+    regularizers = {"w": tf.keras.regularizers.l2(1.0)}
 
     layer = 0
 
