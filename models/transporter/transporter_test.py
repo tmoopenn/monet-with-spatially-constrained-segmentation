@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from absl.testing import parameterized
 import tensorflow.compat.v1 as tf
-from transporter import transporter
+import transporter
 
 
 IMAGE_H = 16
