@@ -84,8 +84,7 @@ decoder = transporter.Decoder(
 keypointer = transporter.KeyPointer(
     num_keypoints=num_keypoints,
     gauss_std=gauss_std,
-    keypoint_encoder=keypoint_encoder,
-    custom_getter=None)
+    keypoint_encoder=keypoint_encoder)
 
 model = transporter.Transporter(
     encoder=encoder,
