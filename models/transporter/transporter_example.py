@@ -99,7 +99,7 @@ image_b_pl = tf1.keras.Input(
     shape=(1, image_shape[0], image_shape[1], 3), 
     dtype=tf.float32)
     
-outputs_tf = model.build(image_a_pl, image_b_pl, is_training=False)
+outputs_tf = model._build(image_a_pl, image_b_pl, is_training=False)
 
 
 #@title Run the model and extract the keypoints
