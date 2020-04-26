@@ -22,17 +22,16 @@ import functools
 
 import sonnet as snt
 import tensorflow.compat.v1 as tf
-from tensorflow.contrib import framework as contrib_framework
-from tensorflow.contrib import layers as contrib_layers
+import tree
 
-nest = contrib_framework.nest
+nest = tree
 
 # Paper submission used BatchNorm, but we have since found that Layer & Instance
 # norm can be quite a lot more stable.
 _NORMALIZATION_CTORS = {
     "layer": snt.LayerNorm,
     "instance": functools.partial(snt.LayerNorm, axis=[1, 2]),
-    "batch": snt.BatchNormV2,
+    "batch": snt.BatchNorm,
 }
 
 
@@ -48,7 +47,7 @@ def _connect_module_with_kwarg_if_supported(module,
   return module(input_tensor, **kwargs)
 
 
-class Transporter(snt.AbstractModule):
+class Transporter(snt.Module):
   """Sonnet module implementing the Transporter architecture."""
 
   def __init__(
@@ -60,10 +59,10 @@ class Transporter(snt.AbstractModule):
     """Initialize the Transporter module.
 
     Args:
-      encoder: `snt.AbstractModule` mapping images to features (see `Encoder`)
-      keypointer: `snt.AbstractModule` mapping images to keypoint masks (see
+      encoder: `snt.Module` mapping images to features (see `Encoder`)
+      keypointer: `snt.Module` mapping images to keypoint masks (see
           `KeyPointer`)
-      decoder: `snt.AbstractModule` decoding features to images (see `Decoder`)
+      decoder: `snt.Module` decoding features to images (see `Decoder`)
       name: `str` module name
     """
     super(Transporter, self).__init__(name=name)
@@ -148,7 +147,7 @@ def reconstruction_loss(image, predicted_image, loss_type="l2"):
     raise ValueError("Unknown loss type: {}".format(loss_type))
 
 
-class Encoder(snt.AbstractModule):
+class Encoder(snt.Module):
   """Encoder module mapping an image to features.
 
   The encoder is a standard convolutional network with ReLu activations.
@@ -191,7 +190,7 @@ class Encoder(snt.AbstractModule):
       A tensor of features of shape [B, F_h, F_w, N] where F_h and F_w are the
        height and width of the feature map and N = 4 * `self._filters`
     """
-    regularizers = {"w": contrib_layers.l2_regularizer(1.0)}
+    regularizers = {"w": tf.keras.regularizers.l2(1.0)}
 
     features = image
     for l in range(len(self._filters)):
@@ -213,7 +212,7 @@ class Encoder(snt.AbstractModule):
     return features
 
 
-class KeyPointer(snt.AbstractModule):
+class KeyPointer(snt.Module):
   """Module for extracting keypoints from an image."""
 
   def __init__(self,
@@ -259,7 +258,7 @@ class KeyPointer(snt.AbstractModule):
     conv = snt.Conv2D(
         self._num_keypoints, [1, 1],
         stride=1,
-        regularizers={"w": contrib_layers.l2_regularizer(1.0)},
+        regularizers={"w": tf.keras.regularizers.l2(1.0)},
         name="conv_1/conv_1")
 
     image_features = self._keypoint_encoder(image, is_training=is_training)
@@ -362,7 +361,7 @@ def _get_gaussian_maps(mu, map_size, inv_std, power=2):
   return g_yx
 
 
-class Decoder(snt.AbstractModule):
+class Decoder(snt.Module):
   """Decoder reconstruction network.
 
   The decoder is a standard convolutional network with ReLu activations.
@@ -402,7 +401,7 @@ class Decoder(snt.AbstractModule):
     height, width = features.shape.as_list()[1:3]
 
     filters = self._initial_filters
-    regularizers = {"w": contrib_layers.l2_regularizer(1.0)}
+    regularizers = {"w": tf.keras.regularizers.l2(1.0)}
 
     layer = 0
 
