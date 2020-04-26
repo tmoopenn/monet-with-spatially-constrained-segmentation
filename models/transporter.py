@@ -47,7 +47,7 @@ def _connect_module_with_kwarg_if_supported(module,
   return module(input_tensor, **kwargs)
 
 
-class Transporter(snt.AbstractModule):
+class Transporter(snt.Module):
   """Sonnet module implementing the Transporter architecture."""
 
   def __init__(
@@ -59,10 +59,10 @@ class Transporter(snt.AbstractModule):
     """Initialize the Transporter module.
 
     Args:
-      encoder: `snt.AbstractModule` mapping images to features (see `Encoder`)
-      keypointer: `snt.AbstractModule` mapping images to keypoint masks (see
+      encoder: `snt.Module` mapping images to features (see `Encoder`)
+      keypointer: `snt.Module` mapping images to keypoint masks (see
           `KeyPointer`)
-      decoder: `snt.AbstractModule` decoding features to images (see `Decoder`)
+      decoder: `snt.Module` decoding features to images (see `Decoder`)
       name: `str` module name
     """
     super(Transporter, self).__init__(name=name)
@@ -147,7 +147,7 @@ def reconstruction_loss(image, predicted_image, loss_type="l2"):
     raise ValueError("Unknown loss type: {}".format(loss_type))
 
 
-class Encoder(snt.AbstractModule):
+class Encoder(snt.Module):
   """Encoder module mapping an image to features.
 
   The encoder is a standard convolutional network with ReLu activations.
@@ -212,7 +212,7 @@ class Encoder(snt.AbstractModule):
     return features
 
 
-class KeyPointer(snt.AbstractModule):
+class KeyPointer(snt.Module):
   """Module for extracting keypoints from an image."""
 
   def __init__(self,
@@ -361,7 +361,7 @@ def _get_gaussian_maps(mu, map_size, inv_std, power=2):
   return g_yx
 
 
-class Decoder(snt.AbstractModule):
+class Decoder(snt.Module):
   """Decoder reconstruction network.
 
   The decoder is a standard convolutional network with ReLu activations.
