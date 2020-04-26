@@ -190,7 +190,7 @@ class Encoder(snt.Module):
       A tensor of features of shape [B, F_h, F_w, N] where F_h and F_w are the
        height and width of the feature map and N = 4 * `self._filters`
     """
-    regularizers = {"w": tf.keras.regularizers.l2(1.0)}
+    regularizers = tf.keras.regularizers.l2(1.0)
 
     features = image
     for l in range(len(self._filters)):
