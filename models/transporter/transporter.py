@@ -94,12 +94,12 @@ class Transporter(snt.Module):
     """
     # Process both images. All gradients related to image_a are stopped.
     image_a_features = tf.stop_gradient(
-        self._encoder(image_a, is_training=is_training))
+        self._encoder._build(image_a, is_training=is_training))
     image_a_keypoints = nest.map_structure(
-        tf.stop_gradient, self._keypointer(image_a, is_training=is_training))
+        tf.stop_gradient, self._keypointer._build(image_a, is_training=is_training))
 
-    image_b_features = self._encoder(image_b, is_training=is_training)
-    image_b_keypoints = self._keypointer(image_b, is_training=is_training)
+    image_b_features = self._encoder._build(image_b, is_training=is_training)
+    image_b_keypoints = self._keypointer._build(image_b, is_training=is_training)
 
     # Transport features
     num_keypoints = image_a_keypoints["heatmaps"].shape[-1]
@@ -115,7 +115,7 @@ class Transporter(snt.Module):
       # copy features from image b around keypoints for image b.
       transported_features += (mask_b * image_b_features)
 
-    reconstructed_image_b = self._decoder(
+    reconstructed_image_b = self._decoder._build(
         transported_features, is_training=is_training)
 
     return {
@@ -261,7 +261,7 @@ class KeyPointer(snt.Module):
         regularizers={"w": tf.keras.regularizers.l2(1.0)},
         name="conv_1/conv_1")
 
-    image_features = self._keypoint_encoder(image, is_training=is_training)
+    image_features = self._keypoint_encoder._build(image, is_training=is_training)
     keypoint_features = conv(image_features)
     return get_keypoint_data_from_feature_map(
         keypoint_features, self._gauss_std)
