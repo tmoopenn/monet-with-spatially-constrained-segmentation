@@ -31,7 +31,7 @@ nest = tree
 _NORMALIZATION_CTORS = {
     "layer": snt.LayerNorm,
     "instance": functools.partial(snt.LayerNorm, axis=[1, 2]),
-    "batch": snt.BatchNormV2,
+    "batch": snt.BatchNorm,
 }
 
 
