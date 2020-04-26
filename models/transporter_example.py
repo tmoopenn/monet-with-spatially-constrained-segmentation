@@ -1,7 +1,7 @@
 import subprocess
 #@title Load Pong frames and checkpoint from GCS
-subprocess.Popen('!gsutil cp gs:\\transporter-data\\pong_episode.npy .\\pong_episode.npy', shell=True, stdout=subprocess.PIPE)
-subprocess.Popen('!gsutil cp gs:\\transporter-data\\transporter_ckpt* .\\', shell=True, stdout=subprocess.PIPE)
+subprocess.Popen('gsutil cp gs:\\transporter-data\\pong_episode.npy .\\pong_episode.npy', shell=True, stdout=subprocess.PIPE)
+subprocess.Popen('gsutil cp gs:\\transporter-data\\transporter_ckpt* .\\', shell=True, stdout=subprocess.PIPE)
 
 from matplotlib import animation, cm
 from matplotlib import pyplot as plt
@@ -10,7 +10,7 @@ import PIL
 from PIL import Image, ImageDraw
 import tensorflow as tf
 
-from IPython.display import HTML
+# from IPython.display import HTML
 from base64 import b64encode
 
 import transporter
