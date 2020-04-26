@@ -199,7 +199,7 @@ class Encoder(snt.Module):
             self._filters[l],
             self._kernels[l],
             self._strides[l],
-            padding=snt.SAME,
+            padding='SAME',
             regularizers=regularizers,
             name="conv_{}".format(l+1))
         norm_module = self._norm_ctor(name="normalization")
