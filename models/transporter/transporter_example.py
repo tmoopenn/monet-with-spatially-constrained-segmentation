@@ -90,7 +90,7 @@ model = transporter.Transporter(
     encoder=encoder,
     decoder=decoder,
     keypointer=keypointer)
-
+tf.disable_eager_execution()
 image_a_pl = tf.placeholder(
     shape=(1, image_shape[0], image_shape[1], 3), 
     dtype=tf.float32)
