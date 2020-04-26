@@ -29,9 +29,9 @@ nest = tree
 # Paper submission used BatchNorm, but we have since found that Layer & Instance
 # norm can be quite a lot more stable.
 _NORMALIZATION_CTORS = {
-    "layer": snt.LayerNorm,
+    "layer": snt.LayerNorm(create_scale=True, create_offset=True),
     "instance": functools.partial(snt.LayerNorm, axis=[1, 2]),
-    "batch": snt.BatchNorm,
+    "batch": snt.BatchNorm(create_scale=True, create_offset=True),
 }
 
 
