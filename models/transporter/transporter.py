@@ -235,7 +235,7 @@ class KeyPointer(snt.Module):
       custom_getter: optional custom getter for variables in this module.
       name: `str` name of the module
     """
-    super(KeyPointer, self).__init__(name=name, custom_getter=custom_getter)
+    super(KeyPointer, self).__init__(name=name)
     self._num_keypoints = num_keypoints
     self._gauss_std = gauss_std
     self._keypoint_encoder = keypoint_encoder
