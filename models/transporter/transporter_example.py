@@ -9,6 +9,7 @@ import numpy as np
 import PIL
 from PIL import Image, ImageDraw
 import tensorflow.compat.v1 as tf
+import tensorflow as tf1
 
 # from IPython.display import HTML
 from base64 import b64encode
@@ -90,15 +91,15 @@ model = transporter.Transporter(
     encoder=encoder,
     decoder=decoder,
     keypointer=keypointer)
-tf.disable_eager_execution()
-image_a_pl = tf.placeholder(
+
+image_a_pl = tf1.keras.Input(
     shape=(1, image_shape[0], image_shape[1], 3), 
     dtype=tf.float32)
 
-image_b_pl = tf.placeholder(
+image_b_pl = tf1.keras.Input(
     shape=(1, image_shape[0], image_shape[1], 3), 
     dtype=tf.float32)
-tf.enable_eager_execution()
+    
 outputs_tf = model(image_a_pl, image_b_pl, is_training=False)
 
 
