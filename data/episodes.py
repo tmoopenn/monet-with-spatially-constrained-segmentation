@@ -6,9 +6,10 @@ Unsupervised State Representation Learning in Atari (https://arxiv.org/abs/1906.
 import torch.nn.functional as F
 import torch
 import numpy as np
-import util
+#import util
 import pdb
-from atariari.benchmark.episodes import get_ppo_rollouts, get_random_agent_rollouts 
+from atariari.benchmark.episodes import get_random_agent_rollouts, get_ppo_rollouts 
+
 
 
 def get_episodes(env_name,
@@ -67,8 +68,8 @@ def get_episodes(env_name,
     # rng.shuffle(inds)
 
     episodes = [torch.stack(episode) for episode in episodes]
-    if downsample:
-          episodes = [util.downsample(episode) for episode in episodes]
+    #if downsample:
+    #      episodes = [util.downsample(episode) for episode in episodes]
 
     #episodes = episodes[inds]
     #pdb.set_trace()

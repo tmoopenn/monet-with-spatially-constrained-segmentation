@@ -1,6 +1,6 @@
 import argparse
 import os
-import util
+from utils import util
 import torch
 import models
 import data
@@ -24,7 +24,6 @@ class BaseOptions():
         parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment. It decides where to store samples and models')
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
-        parser.add_argument('--dynamic_datagen', type=bool, default=True, help='flag indicating whether train batches will be generated dynamically')
 
         # model parameters
         parser.add_argument('--model', type=str, default='monet', help='chooses which model to use. [cycle_gan | pix2pix | test | colorization]')
@@ -40,7 +39,7 @@ class BaseOptions():
         parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         parser.add_argument('--num_threads', default=4, type=int, help='# threads for loading data')
         parser.add_argument('--batch_size', type=int, default=10, help='input batch size')
-        parser.add_argument('--load_size', type=int, default=64, help='scale images to this size')
+        parser.add_argument('--load_size', type=int, default=128, help='scale images to this size')
         parser.add_argument('--crop_size', type=int, default=256, help='then crop to this size')
         parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
         # parser.add_argument('--preprocess', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]')
