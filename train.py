@@ -2,10 +2,10 @@ import numpy as np
 import torch.nn.functional as F
 import time
 import torch
-from train_options import TrainOptions
+from options.train_options import TrainOptions
 from models import create_model
 from data import create_dataset
-import util
+from utils import util
 from visualizer import Visualizer 
 #import pdb
 
