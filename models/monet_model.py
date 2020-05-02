@@ -7,6 +7,7 @@ from itertools import chain
 
 import torch
 from torch import nn, optim
+from utils.util import extract_patches
 
 from .base_model import BaseModel
 from . import networks
@@ -28,7 +29,8 @@ class MONetModel(BaseModel):
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
-        parser.add_argument('--full_res', action='store_true', default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--full_res', action='store_true', default=False, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--attn_window_size', default=3, help='Size of windows to use for self-attention network.')
         
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
@@ -46,6 +48,7 @@ class MONetModel(BaseModel):
         BaseModel.__init__(self, opt)  # call the initialization method of BaseModel
         self.loss_names = ['E', 'D', 'mask']
         self.use_pednet = opt.use_pednet
+        self.attn_window_size = opt.attn_window_size
         if self.use_pednet:
             self.visual_names = ['m{}'.format(i) for i in range(opt.num_slots)] + \
                                 ['x{}'.format(i) for i in range(opt.num_slots)] + \
@@ -56,12 +59,14 @@ class MONetModel(BaseModel):
                             ['x{}'.format(i) for i in range(opt.num_slots)] + \
                             ['xm{}'.format(i) for i in range(opt.num_slots)] + \
                             ['x', 'x_tilde']
-        self.model_names = ['Attn', 'CVAE']
+        self.model_names = ['Attn', 'CVAE', 'SelfAttn']
         if opt.use_pednet:
             self.netAttn = networks.init_net(networks.PedNet(opt.input_nc,1), gpu_ids=self.gpu_ids)
         else:
             self.netAttn = networks.init_net(networks.Attention(opt.input_nc, 1), gpu_ids=self.gpu_ids)
         self.netCVAE = networks.init_net(networks.ComponentVAE(opt.input_nc, opt.z_dim, opt.full_res), gpu_ids=self.gpu_ids)
+        #self.netSelfAttn = networks.init_net(networks.Self_Attn_MultiC(1, torch.relu), gpu_ids=self.gpu_ids)
+        self.netSelfAttn = networks.init_net(networks.Self_Attn(opt.attn_window_size * opt.attn_window_size, torch.relu, v_dim=opt.attn_window_size * opt.attn_window_size), gpu_ids=self.gpu_ids)
         self.eps = torch.finfo(torch.float).eps
         # define networks; you can use opt.isTrain to specify different behaviors for training and test.
         if self.isTrain:  # only defined during training time
@@ -109,7 +114,20 @@ class MONetModel(BaseModel):
                     log_alpha_k = self.netAttn(self.x_prev, self.x_t, self.x_next, log_s_k)
                 else:
                     log_alpha_k = self.netAttn(self.x, log_s_k)
+                #mask_patches = extract_patches(log_alpha_k.exp(), (self.attn_window_size, self.attn_window_size),padding='SAME')
+                #log_alpha_k, attention = self.netSelfAttn(mask_patches, log_alpha_k.exp()) # (b,1,w,h) (b,(w*h),(w*h)) 
+                #log_alpha_k, attention = self.netSelfAttn(log_alpha_k.exp())
                 log_m_k = log_s_k + log_alpha_k
+
+                # Apply self-attention to scoped mask so don't attend to previously explained components
+                # extract patches 
+                #mask_patches = extract_patches(log_m_k.exp(), (self.attn_window_size, self.attn_window_size),padding='SAME')
+                # apply self-attention layer, return mask_pixel_scores which is
+                # pixel-wise attention scores added to mask logits and attention tensor
+                #mask_pixel_scores, attention = self.netSelfAttn(mask_patches, log_m_k.exp()) # (b,1,w,h) (b,(w*h),(w*h)) 
+                #log_m_k = mask_pixel_scores
+
+                # TODO: Use self-attended scope mask to update next scope 
                 # Compute next scope
                 log_s_k += (1. - log_alpha_k.exp()).clamp(min=self.eps).log()
             else:
