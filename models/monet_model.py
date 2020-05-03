@@ -8,6 +8,7 @@ from itertools import chain
 import torch
 from torch import nn, optim
 from utils.util import extract_patches
+from utils.spatial_constraint_loss import unsupervised_spatial_constraint_loss
 
 from .base_model import BaseModel
 from . import networks
@@ -33,8 +34,9 @@ class MONetModel(BaseModel):
         parser.add_argument('--attn_window_size', default=3, help='Size of windows to use for self-attention network.')
         
         if is_train:
-            parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
-            parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
+            parser.add_argument('--beta', type=float, default=0.4, help='weight for the encoder KLD')
+            parser.add_argument('--gamma', type=float, default=0.4, help='weight for the mask KLD')
+            parser.add_argument('--alpha', type=float, default=0.2, help='weight for the spatial_constraint penalty')
         return parser
 
     def __init__(self, opt):
@@ -46,7 +48,7 @@ class MONetModel(BaseModel):
         - define loss function, visualization images, model names, and optimizers
         """
         BaseModel.__init__(self, opt)  # call the initialization method of BaseModel
-        self.loss_names = ['E', 'D', 'mask']
+        self.loss_names = ['E', 'D', 'mask','SC']
         self.use_pednet = opt.use_pednet
         self.attn_window_size = opt.attn_window_size
         if self.use_pednet:
@@ -59,18 +61,17 @@ class MONetModel(BaseModel):
                             ['x{}'.format(i) for i in range(opt.num_slots)] + \
                             ['xm{}'.format(i) for i in range(opt.num_slots)] + \
                             ['x', 'x_tilde']
-        self.model_names = ['Attn', 'CVAE', 'SelfAttn']
+        self.model_names = ['Attn', 'CVAE']
         if opt.use_pednet:
             self.netAttn = networks.init_net(networks.PedNet(opt.input_nc,1), gpu_ids=self.gpu_ids)
         else:
             self.netAttn = networks.init_net(networks.Attention(opt.input_nc, 1), gpu_ids=self.gpu_ids)
         self.netCVAE = networks.init_net(networks.ComponentVAE(opt.input_nc, opt.z_dim, opt.full_res), gpu_ids=self.gpu_ids)
-        #self.netSelfAttn = networks.init_net(networks.Self_Attn_MultiC(1, torch.relu), gpu_ids=self.gpu_ids)
-        self.netSelfAttn = networks.init_net(networks.Self_Attn(opt.attn_window_size * opt.attn_window_size, torch.relu, v_dim=opt.attn_window_size * opt.attn_window_size), gpu_ids=self.gpu_ids)
         self.eps = torch.finfo(torch.float).eps
         # define networks; you can use opt.isTrain to specify different behaviors for training and test.
         if self.isTrain:  # only defined during training time
             self.criterionKL = nn.KLDivLoss(reduction='batchmean')
+            self.criterionSC = unsupervised_spatial_constraint_loss
             self.optimizer = optim.RMSprop(chain(self.netAttn.parameters(), self.netCVAE.parameters()), lr=opt.lr)
             self.optimizers = [self.optimizer]
 
@@ -178,7 +179,16 @@ class MONetModel(BaseModel):
         self.loss_E /= n
         self.loss_D = -torch.logsumexp(self.b, dim=1).sum() / n
         self.loss_mask = self.criterionKL(self.m_tilde_logits.log_softmax(dim=1), self.m)
-        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask
+        self.loss_SC = 0
+        for i in range(self.m.shape[1]):
+            if self.use_pednet:
+                self.loss_SC += unsupervised_spatial_constraint_loss(self.x_t, self.m[:,i,:,:].unsqueeze(1))
+            else:
+                #self.loss_SC += self.criterionSC(self.x, torch.cat((self.m[:,i,:,:].unsqueeze(1), self.m_tilde_logits[:,i,:,:].unsqueeze(1)), dim=1))
+                self.loss_SC += self.criterionSC(self.x, self.m[:,i,:,:].unsqueeze(1))
+        self.loss_SC = torch.sum(self.loss_SC, dim=tuple(range(1,self.loss_SC.ndim))) 
+        self.loss_SC = self.loss_SC.sum() / n
+        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask + self.opt.alpha * self.loss_SC
         loss.backward()
 
     def optimize_parameters(self):
