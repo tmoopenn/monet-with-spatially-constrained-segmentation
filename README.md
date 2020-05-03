@@ -15,4 +15,4 @@ Start another new browser window from GCP instance.
 
 Run the train command
 
-`python train.py --gpu_ids -1 --batch_size 15 --display_winsize 10 --game SkiingNoFrameskip-v0 --dynamic_datagen
+`python train.py --gpu_ids -1 --batch_size 15 --display_winsize 10 --game SkiingNoFrameskip-v0 --dynamic_datagen`
