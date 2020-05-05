@@ -59,7 +59,7 @@ class AtariDataset(BaseDataset):
         img = TF.to_tensor(img)
 
         # should we normalize with mean of 0 and st.dev 1??
-        img = TF.normalize(img, [0.5] * self.opt.input_nc, [0.5] * self.opt.input_nc)
+        img = TF.normalize(img, [0.0] * self.opt.input_nc, [1.0] * self.opt.input_nc)
         return img
 
     def __getitem__(self, index):
