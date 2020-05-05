@@ -48,7 +48,7 @@ class MONetModel(BaseModel):
         - define loss function, visualization images, model names, and optimizers
         """
         BaseModel.__init__(self, opt)  # call the initialization method of BaseModel
-        self.loss_names = ['E', 'D', 'mask','SC']
+        self.loss_names = ['E', 'D', 'mask']
         self.use_pednet = opt.use_pednet
         self.attn_window_size = opt.attn_window_size
         if self.use_pednet:
