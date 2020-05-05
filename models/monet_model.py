@@ -34,8 +34,8 @@ class MONetModel(BaseModel):
         parser.add_argument('--attn_window_size', default=3, help='Size of windows to use for self-attention network.')
         
         if is_train:
-            parser.add_argument('--beta', type=float, default=0.4, help='weight for the encoder KLD')
-            parser.add_argument('--gamma', type=float, default=0.4, help='weight for the mask KLD')
+            parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
+            parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
             parser.add_argument('--alpha', type=float, default=0.2, help='weight for the spatial_constraint penalty')
         return parser
 
@@ -179,16 +179,16 @@ class MONetModel(BaseModel):
         self.loss_E /= n
         self.loss_D = -torch.logsumexp(self.b, dim=1).sum() / n
         self.loss_mask = self.criterionKL(self.m_tilde_logits.log_softmax(dim=1), self.m)
-        self.loss_SC = 0
-        for i in range(self.m.shape[1]):
-            if self.use_pednet:
-                self.loss_SC += unsupervised_spatial_constraint_loss(self.x_t, self.m[:,i,:,:].unsqueeze(1))
-            else:
+        #self.loss_SC = 0
+        #for i in range(self.m.shape[1]):
+            #if self.use_pednet:
+                #self.loss_SC += unsupervised_spatial_constraint_loss(self.x_t, self.m[:,i,:,:].unsqueeze(1))
+            #else:
                 #self.loss_SC += self.criterionSC(self.x, torch.cat((self.m[:,i,:,:].unsqueeze(1), self.m_tilde_logits[:,i,:,:].unsqueeze(1)), dim=1))
-                self.loss_SC += self.criterionSC(self.x, self.m[:,i,:,:].unsqueeze(1))
-        self.loss_SC = torch.sum(self.loss_SC, dim=tuple(range(1,self.loss_SC.ndim))) 
-        self.loss_SC = self.loss_SC.sum() / n
-        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask + self.opt.alpha * self.loss_SC
+                #self.loss_SC += self.criterionSC(self.x, self.m[:,i,:,:].unsqueeze(1))
+        #self.loss_SC = torch.sum(self.loss_SC, dim=tuple(range(1,self.loss_SC.ndim))) 
+        #self.loss_SC = self.loss_SC.sum() / n
+        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask + self.opt.alpha
         loss.backward()
 
     def optimize_parameters(self):
