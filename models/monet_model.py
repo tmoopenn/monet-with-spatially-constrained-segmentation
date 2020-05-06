@@ -7,6 +7,8 @@ from itertools import chain
 
 import torch
 from torch import nn, optim
+from utils.util import extract_patches
+from utils.spatial_constraint_loss import unsupervised_spatial_constraint_loss
 
 from .base_model import BaseModel
 from . import networks
@@ -28,11 +30,13 @@ class MONetModel(BaseModel):
         parser.add_argument('--num_slots', metavar='K', type=int, default=7, help='Number of supported slots')
         parser.add_argument('--z_dim', type=int, default=16, help='Dimension of individual z latent per slot')
         parser.add_argument('--epoch_steps', type=int, default=100, help='Total number of steps to collect across episodes')
-        parser.add_argument('--full_res', action='store_true', default=True, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--full_res', action='store_true', default=False, help='Specifies whether model linear layers should expect image size of 64 (False) or 128 (True)')
+        parser.add_argument('--attn_window_size', default=3, help='Size of windows to use for self-attention network.')
         
         if is_train:
             parser.add_argument('--beta', type=float, default=0.5, help='weight for the encoder KLD')
             parser.add_argument('--gamma', type=float, default=0.5, help='weight for the mask KLD')
+            parser.add_argument('--alpha', type=float, default=0.2, help='weight for the spatial_constraint penalty')
         return parser
 
     def __init__(self, opt):
@@ -46,6 +50,7 @@ class MONetModel(BaseModel):
         BaseModel.__init__(self, opt)  # call the initialization method of BaseModel
         self.loss_names = ['E', 'D', 'mask']
         self.use_pednet = opt.use_pednet
+        self.attn_window_size = opt.attn_window_size
         if self.use_pednet:
             self.visual_names = ['m{}'.format(i) for i in range(opt.num_slots)] + \
                                 ['x{}'.format(i) for i in range(opt.num_slots)] + \
@@ -66,6 +71,7 @@ class MONetModel(BaseModel):
         # define networks; you can use opt.isTrain to specify different behaviors for training and test.
         if self.isTrain:  # only defined during training time
             self.criterionKL = nn.KLDivLoss(reduction='batchmean')
+            self.criterionSC = unsupervised_spatial_constraint_loss
             self.optimizer = optim.RMSprop(chain(self.netAttn.parameters(), self.netCVAE.parameters()), lr=opt.lr)
             self.optimizers = [self.optimizer]
 
@@ -109,7 +115,20 @@ class MONetModel(BaseModel):
                     log_alpha_k = self.netAttn(self.x_prev, self.x_t, self.x_next, log_s_k)
                 else:
                     log_alpha_k = self.netAttn(self.x, log_s_k)
+                #mask_patches = extract_patches(log_alpha_k.exp(), (self.attn_window_size, self.attn_window_size),padding='SAME')
+                #log_alpha_k, attention = self.netSelfAttn(mask_patches, log_alpha_k.exp()) # (b,1,w,h) (b,(w*h),(w*h)) 
+                #log_alpha_k, attention = self.netSelfAttn(log_alpha_k.exp())
                 log_m_k = log_s_k + log_alpha_k
+
+                # Apply self-attention to scoped mask so don't attend to previously explained components
+                # extract patches 
+                #mask_patches = extract_patches(log_m_k.exp(), (self.attn_window_size, self.attn_window_size),padding='SAME')
+                # apply self-attention layer, return mask_pixel_scores which is
+                # pixel-wise attention scores added to mask logits and attention tensor
+                #mask_pixel_scores, attention = self.netSelfAttn(mask_patches, log_m_k.exp()) # (b,1,w,h) (b,(w*h),(w*h)) 
+                #log_m_k = mask_pixel_scores
+
+                # TODO: Use self-attended scope mask to update next scope 
                 # Compute next scope
                 log_s_k += (1. - log_alpha_k.exp()).clamp(min=self.eps).log()
             else:
@@ -160,7 +179,16 @@ class MONetModel(BaseModel):
         self.loss_E /= n
         self.loss_D = -torch.logsumexp(self.b, dim=1).sum() / n
         self.loss_mask = self.criterionKL(self.m_tilde_logits.log_softmax(dim=1), self.m)
-        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask
+        #self.loss_SC = 0
+        #for i in range(self.m.shape[1]):
+            #if self.use_pednet:
+                #self.loss_SC += unsupervised_spatial_constraint_loss(self.x_t, self.m[:,i,:,:].unsqueeze(1))
+            #else:
+                #self.loss_SC += self.criterionSC(self.x, torch.cat((self.m[:,i,:,:].unsqueeze(1), self.m_tilde_logits[:,i,:,:].unsqueeze(1)), dim=1))
+                #self.loss_SC += self.criterionSC(self.x, self.m[:,i,:,:].unsqueeze(1))
+        #self.loss_SC = torch.sum(self.loss_SC, dim=tuple(range(1,self.loss_SC.ndim))) 
+        #self.loss_SC = self.loss_SC.sum() / n
+        loss = self.loss_D + self.opt.beta * self.loss_E + self.opt.gamma * self.loss_mask + self.opt.alpha
         loss.backward()
 
     def optimize_parameters(self):

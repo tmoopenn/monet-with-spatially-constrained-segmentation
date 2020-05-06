@@ -9,11 +9,11 @@ import torch.nn as N
 import torch.nn.functional as F
 from utils.util import extract_patches
 
-def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.5, positive_threshold=0.51):
+def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.5):
     '''
     Parameters:
     x: tensor representing input image of shape (b, c, h, w). Will be converted to grayscale taking max channel 
-    mask_logits: logits outputted from segmentation network of shape (b,1,h,w). 
+    mask_logits: logits outputted from segmentation network of shape (b,1,h,w). Assumed values bounded between [0,1] in binary case
     kernel_size: filter size to use for extracting image patches 
     sigma: standard deviation
     positive_threshold: threshold above which to consider logits as members of the positive class
@@ -25,10 +25,13 @@ def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.
     elif type(kernel_size) is list:
         kernel_size = kernel_size 
 
-    # convert logits to probabilities 
-    probs = torch.sigmoid(mask_logits) # (b, c, h, w)
-    negative_class = torch.ones(probs.shape) - probs
-    probs = torch.cat((probs, negative_class), 1)
+     
+    if mask_logits.shape[1] == 1: # Binary case, create positive and negative class, assume values already sigmoid i.e [0,1]
+        negative_class = torch.ones(mask_logits.shape) - mask_logits
+        mask_logits = torch.cat((mask_logits, negative_class),dim=1)
+        probs = torch.softmax(mask_logits, dim=1)
+    else: # Multi-class setting
+        probs = torch.softmax(probs, dim=1)
     #print(probs[0,:,0,0].sum()) # check value within [0,1]
     #print(probs[0,:,:,:].sum()) # analyze prob sum across image
 

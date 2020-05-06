@@ -3,7 +3,7 @@ import torchvision.transforms.functional as TF
 import numpy as np
 from torch.utils.data import RandomSampler, BatchSampler
 import torch
-import util 
+from utils import util
 
 from data.image_folder import make_dataset
 from data.base_dataset import BaseDataset
@@ -59,7 +59,7 @@ class AtariDataset(BaseDataset):
         img = TF.to_tensor(img)
 
         # should we normalize with mean of 0 and st.dev 1??
-        img = TF.normalize(img, [0.5] * self.opt.input_nc, [0.5] * self.opt.input_nc)
+        img = TF.normalize(img, [0.0] * self.opt.input_nc, [1.0] * self.opt.input_nc)
         return img
 
     def __getitem__(self, index):

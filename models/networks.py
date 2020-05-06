@@ -275,7 +275,7 @@ class AttentionBlock(nn.Module):
 class Attention(nn.Module):
     """Create a Unet-based generator"""
 
-    def __init__(self, input_nc, output_nc, ngf=64):
+    def __init__(self, input_nc, output_nc, ngf=64, full_res=False):
         """Construct a Unet generator
         Parameters:
             input_nc (int)  -- the number of channels in input images
@@ -291,9 +291,13 @@ class Attention(nn.Module):
         self.downblock2 = AttentionBlock(ngf, ngf * 2)
         self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
-        self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=True)
-        # no resizing occurs in the last block of each path
-        self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        self.full_res = full_res
+        if full_res:
+            self.downblock5 = AttentionBlock(ngf * 8, ngf * 8)
+            # no resizing occurs in the last block of each path
+            self.downblock6 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
+        else:
+            self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
 
         self.mlp = nn.Sequential(
             nn.Linear(4 * 4 * ngf * 8, 128),
@@ -304,7 +308,8 @@ class Attention(nn.Module):
             nn.ReLU(),
         )
 
-        self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
+        if full_res:
+            self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock2 = AttentionBlock(2 * ngf * 8, ngf * 8)
         self.upblock3 = AttentionBlock(2 * ngf * 8, ngf * 4)
         self.upblock4 = AttentionBlock(2 * ngf * 4, ngf * 2)
@@ -323,14 +328,16 @@ class Attention(nn.Module):
         x, skip5 = self.downblock5(x)
         skip6 = skip5
         # The input to the MLP is the last skip tensor collected from the downsampling path (after flattening)
-        _, skip6 = self.downblock6(x)
+        if self.full_res:
+            _, skip6 = self.downblock6(x)
         # Flatten
         x = skip6.flatten(start_dim=1)
         x = self.mlp(x)
         # Reshape to match shape of last skip tensor
         x = x.view(skip6.shape)
         # Upsampling blocks
-        x = self.upblock1(x, skip6)
+        if self.full_res:
+            x = self.upblock1(x, skip6)
         x = self.upblock2(x, skip5)
         x = self.upblock3(x, skip4)
         x = self.upblock4(x, skip3)
@@ -521,12 +528,12 @@ class Self_Attn_MultiC(nn.Module):
     https://github.com/heykeetae/Self-Attention-GAN/blob/master/sagan_models.py
     """
     def __init__(self,in_dim,activation):
-        super(Self_Attn,self).__init__()
+        super(Self_Attn_MultiC,self).__init__()
         self.channel_in = in_dim
         self.activation = activation
         
-        self.query_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
-        self.key_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8 , kernel_size= 1)
+        self.query_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
+        self.key_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim, kernel_size= 1)
         self.value_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
         self.gamma = nn.Parameter(torch.zeros(1))
 
@@ -557,7 +564,9 @@ class Self_Attn_MultiC(nn.Module):
         out = torch.bmm(proj_value,attention.permute(0,2,1) ) # B x C_out x (W*H)
         out = out.view(m_batchsize,C,width,height) # B x C_out x W x H
         
-        out = self.gamma*out + x
+        out = F.logsigmoid(self.gamma*out + x)
+        # out = out + x 
+        # out = F.log_softmax(out.view(b,c,-1), 2).view_as(x)
         return out,attention
 
 class Self_Attn(nn.Module):
@@ -576,8 +585,9 @@ class Self_Attn(nn.Module):
         self.V = nn.Linear(in_dim, in_dim)
 
         self.softmax  = nn.Softmax(dim=-1) 
+        self.gamma = nn.Parameter(torch.zeros(1))
 
-    def forward(self,x):
+    def forward(self,x,X):
         """
             inputs :
                 x : input image patches( B x W x H x (c*kw*kh) ). 
@@ -596,9 +606,11 @@ class Self_Attn(nn.Module):
         out = torch.bmm(attn, proj_value) # b x (w*h) x v_dim
         out = out.view(b, w, h, -1) # b x w x h x v_dim
 
-        # MAYBE CHANGE
-        out - out.sum(-1).unsqueeze(1) # b x 1 w x h
-
+        # MAYBE CHANGE, Here we are summing scores of neighboring pixels in attn window to get a single scalar value for pixel at pos(w,h) then add to input pixel values.
+        out = torch.max(out, dim=-1)[0].unsqueeze(1) # b x 1 w x h
+        out = F.logsigmoid(self.gamma*out + X)
+        # out = out + x 
+        # out = F.log_softmax(out.view(b,c,-1), 2).view_as(x)
         return out, attn
 
 
