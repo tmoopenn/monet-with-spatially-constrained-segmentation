@@ -3,7 +3,7 @@ import os
 import sys
 import ntpath
 import time
-import visualize.htmll
+from visualize import htmll
 from utils import util
 from subprocess import Popen, PIPE
 # from scipy.misc import imresize
