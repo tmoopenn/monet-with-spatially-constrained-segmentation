@@ -6,7 +6,7 @@ from train_options import TrainOptions
 from models import create_model
 from data import create_dataset
 import util
-from visualizer import Visualizer 
+from visualize.visualizer import Visualizer 
 #import pdb
 
 if __name__ == '__main__':
