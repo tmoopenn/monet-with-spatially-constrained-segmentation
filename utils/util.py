@@ -109,3 +109,22 @@ def visualize_frame(frame):
     f = frame.permute(1,2,0).numpy()
     plt.imshow(f)
     plt.show(f)
+
+def extract_patches(x, kernal_size, padding='SAME',sx=1,sy=1) :
+    if padding == 'SAME':
+        x = F.pad(x, (1,1,1,1))
+    elif padding == 'VALID':
+        x = x
+    else:
+        raise ValueError(padding + " not recognized")
+    kh, kw = kernal_size
+    dh, dw = sy, sx 
+
+    # get all image windows of size (kh, kw) and stride (dh, dw)
+    patches = x.unfold(2, kh, dh).unfold(3, kw, dw)
+    #print(patches.shape)  # [b, c, h, w, kh, kw]
+    # Permute so that channels are next to patch dimension
+    patches = patches.permute(0, 2, 3, 1, 4, 5).contiguous()  # [b, h, w, c, kh, kw]
+    # View/Reshape as [batch_size, height, width, channels*kh*kw]
+    patches = patches.view(*patches.size()[:3], -1)
+    return patches

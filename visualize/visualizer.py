@@ -3,7 +3,8 @@ import os
 import sys
 import ntpath
 import time
-import util, htmll
+from visualize import htmll
+from utils import util
 from subprocess import Popen, PIPE
 # from scipy.misc import imresize
 from skimage.transform import resize
