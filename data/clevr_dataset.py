@@ -18,6 +18,7 @@ class CLEVRDataset(BaseDataset):
                             crop_size=192, # crop is done first
                             load_size=64,  # before resize
                             num_slots=11, display_ncols=11)
+        parser.add_argument('--dynamic_datagen', action='store_true', help='flag indicating whether train batches will be generated dynamically')
         return parser
 
     def __init__(self, opt):

@@ -2,19 +2,22 @@ import numpy as np
 import torch.nn.functional as F
 import time
 import torch
-from options.train_options import TrainOptions
+from train_options import TrainOptions
 from models import create_model
 from data import create_dataset
-from utils import util
+import util
 from visualizer import Visualizer 
 #import pdb
 
 if __name__ == '__main__':
     opt = TrainOptions().parse()   # get training options
-    dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
-    dataset_size = len(dataset)    # get the number of images in the dataset.
-    print('The number of training images = %d' % dataset_size)
-    
+    if not opt.dynamic_datagen:
+        dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
+        dataset_size = len(dataset)    # get the number of images in the dataset.
+        print('The number of training images = %d' % dataset_size)
+    else:
+        dataset = []
+
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
     visualizer = Visualizer(opt)   # create a visualizer that display/save images and plots
@@ -25,10 +28,10 @@ if __name__ == '__main__':
         iter_data_time = time.time()    # timer for data loading per iteration
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
 
-        # if opt.dynamic_datagen:
-        dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
-        dataset_size = len(dataset)    # get the number of images in the dataset.
-        print('The number of training images for epoch = %d' % dataset_size)
+        if opt.dynamic_datagen:
+            dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
+            dataset_size = len(dataset)    # get the number of images in the dataset.
+            print('The number of training images for epoch = %d' % dataset_size)
         
 
         for i, data in enumerate(dataset):  # inner loop within one epoch
