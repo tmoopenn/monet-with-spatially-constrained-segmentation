@@ -110,7 +110,7 @@ def visualize_frame(frame):
     plt.imshow(f)
     plt.show(f)
 
-def extract_patches(x, kernal_size, padding='SAME') :
+def extract_patches(x, kernal_size, padding='SAME',sx=1,sy=1) :
     if padding == 'SAME':
         x = F.pad(x, (1,1,1,1))
     elif padding == 'VALID':
@@ -118,7 +118,7 @@ def extract_patches(x, kernal_size, padding='SAME') :
     else:
         raise ValueError(padding + " not recognized")
     kh, kw = kernal_size
-    dh, dw = 1, 1 
+    dh, dw = sy, sx 
 
     # get all image windows of size (kh, kw) and stride (dh, dw)
     patches = x.unfold(2, kh, dh).unfold(3, kw, dw)
