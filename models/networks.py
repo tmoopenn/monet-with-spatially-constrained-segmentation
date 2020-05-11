@@ -275,7 +275,7 @@ class AttentionBlock(nn.Module):
 class Attention(nn.Module):
     """Create a Unet-based generator"""
 
-    def __init__(self, input_nc, output_nc, ngf=64, full_res=False):
+    def __init__(self, input_nc, output_nc, ngf=64, full_res=False, use_attn=True):
         """Construct a Unet generator
         Parameters:
             input_nc (int)  -- the number of channels in input images
@@ -292,6 +292,7 @@ class Attention(nn.Module):
         self.downblock3 = AttentionBlock(ngf * 2, ngf * 4)
         self.downblock4 = AttentionBlock(ngf * 4, ngf * 8)
         self.full_res = full_res
+        self.use_attn = use_attn
         if full_res:
             self.downblock5 = AttentionBlock(ngf * 8, ngf * 8)
             # no resizing occurs in the last block of each path
@@ -299,14 +300,17 @@ class Attention(nn.Module):
         else:
             self.downblock5 = AttentionBlock(ngf * 8, ngf * 8, resize=False)
 
-        self.mlp = nn.Sequential(
-            nn.Linear(4 * 4 * ngf * 8, 128),
-            nn.ReLU(),
-            nn.Linear(128, 128),
-            nn.ReLU(),
-            nn.Linear(128, 4 * 4 * ngf * 8),
-            nn.ReLU(),
-        )
+        if use_attn:
+            self.mlp = Self_Attn_MultiC(ngf*8, torch.relu)
+        else:
+            self.mlp = nn.Sequential(
+                nn.Linear(4 * 4 * ngf * 8, 128),
+                nn.ReLU(),
+                nn.Linear(128, 128),
+                nn.ReLU(),
+                nn.Linear(128, 4 * 4 * ngf * 8),
+                nn.ReLU(),
+            )
 
         if full_res:
             self.upblock1 = AttentionBlock(2 * ngf * 8, ngf * 8)
@@ -330,11 +334,14 @@ class Attention(nn.Module):
         # The input to the MLP is the last skip tensor collected from the downsampling path (after flattening)
         if self.full_res:
             _, skip6 = self.downblock6(x)
-        # Flatten
-        x = skip6.flatten(start_dim=1)
-        x = self.mlp(x)
-        # Reshape to match shape of last skip tensor
-        x = x.view(skip6.shape)
+        if self.use_attn:
+            x, attn = self.mlp(skip6)
+        else:
+            # Flatten
+            x = skip6.flatten(start_dim=1)
+            x = self.mlp(x)
+            # Reshape to match shape of last skip tensor
+            x = x.view(skip6.shape)
         # Upsampling blocks
         if self.full_res:
             x = self.upblock1(x, skip6)
@@ -532,8 +539,8 @@ class Self_Attn_MultiC(nn.Module):
         self.channel_in = in_dim
         self.activation = activation
         
-        self.query_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
-        self.key_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim, kernel_size= 1)
+        self.query_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8, kernel_size= 1)
+        self.key_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim//8, kernel_size= 1)
         self.value_conv = nn.Conv2d(in_channels = in_dim , out_channels = in_dim , kernel_size= 1)
         self.gamma = nn.Parameter(torch.zeros(1))
 
@@ -564,9 +571,7 @@ class Self_Attn_MultiC(nn.Module):
         out = torch.bmm(proj_value,attention.permute(0,2,1) ) # B x C_out x (W*H)
         out = out.view(m_batchsize,C,width,height) # B x C_out x W x H
         
-        out = F.logsigmoid(self.gamma*out + x)
-        # out = out + x 
-        # out = F.log_softmax(out.view(b,c,-1), 2).view_as(x)
+        out = self.gamma*out + x
         return out,attention
 
 class Self_Attn(nn.Module):
