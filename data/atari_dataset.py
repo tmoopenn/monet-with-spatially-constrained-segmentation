@@ -53,12 +53,12 @@ class AtariDataset(BaseDataset):
         Parameters:
             img (PIL image) -- image to apply transforms to
         '''
-        # crop at top left corner (0,34) for crop box size of (self.opt.crop_size, self.opt.crop_size) then resize cropped image to self.opt.load_size 
+        # crop at top left corner (0,0) for crop box size of (self.opt.crop_size, self.opt.crop_size) then resize cropped image to self.opt.load_size 
         # expects image in PIL format 
         img = TF.resized_crop(img,  0, 0, self.opt.crop_size, self.opt.crop_size, self.opt.load_size, Image.NEAREST)
         img = TF.to_tensor(img)
 
-        # should we normalize with mean of 0 and st.dev 1??
+        # normalize with mean of 0 and st.dev 1
         img = TF.normalize(img, [0.0] * self.opt.input_nc, [1.0] * self.opt.input_nc)
         return img
 

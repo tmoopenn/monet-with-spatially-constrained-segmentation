@@ -27,19 +27,14 @@ def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.
 
      
     if mask_logits.shape[1] == 1: # Binary case, create positive and negative class, assume values already sigmoid i.e [0,1]
-        negative_class = torch.ones(mask_logits.shape) - mask_logits
-        mask_logits = torch.cat((mask_logits, negative_class),dim=1)
-        probs = torch.softmax(mask_logits, dim=1)
+        negative_class = torch.ones(mask_logits.shape).to(mask_logits.device) - mask_logits
+        probs = torch.cat((mask_logits, negative_class),dim=1)
     else: # Multi-class setting
-        probs = torch.softmax(probs, dim=1)
-    #print(probs[0,:,0,0].sum()) # check value within [0,1]
-    #print(probs[0,:,:,:].sum()) # analyze prob sum across image
+        probs = torch.softmax(mask_logits, dim=1)
 
     # assign labels to probabilities based on positive_threshold 
-    #preds = probs > positive_threshold # (b, 1, h, w) In multi-class case, need to take argmax of channel dim
     confs = torch.max(probs,1)[0].unsqueeze(1)
     preds = torch.argmax(probs,1).unsqueeze(1)
-    #print("preds",preds.shape)
 
     p_zmask = extract_patches(torch.ones(confs.shape), kernel_size, padding='SAME')
     p_confs = extract_patches(confs, kernel_size, padding='SAME')
@@ -54,17 +49,10 @@ def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.
     p_exp = p_zmask * p_exp # mask with ones  p_zmask (b, h, w, kh * kw)
     p_mask = 2 * (preds == p_preds).float() - 1 # for labels that match center pixel retain 1 else becomes -1 (b, h, w, kh * kw)
 
-    #print("p_exp", p_exp.shape)
-    #print("p_zmask", p_zmask.shape)
-    #print("p_mask", p_mask.shape)
-
     u_ij = p_exp * p_mask # make p_exp entries positive or negative depending on whether they match center pixel (b, h, w, kh * kw)
-    #print("u_ij", u_ij.shape)
     P_ij = confs * p_confs # multiply center pixel i by other j kernel pixels (b, h, w, kh * kw)
-    #print("P_ij", P_ij.shape)
     F_ij = u_ij * P_ij # u_ij multiplied by confidence scores as per paper  (b, h, w, kh * kw)
     F_ij = torch.sum(F_ij, dim=-1)
-    #print("F_ij, confs", F_ij.shape, confs.shape)
     p_exp = torch.sum(p_exp, dim=-1)
     
     # Here F_ij is the sum of center probability and neigbor pixel patch probability (in this case 9 surrounding pixels)
@@ -73,7 +61,6 @@ def unsupervised_spatial_constraint_loss(x, mask_logits, kernel_size=3, sigma=0.
     # In denominator, subtract weight in mu where i == j exp(li - li) = exp(0) = 1
     # Add 1e-9 so no divide by zero 
     F_i = (F_ij - (confs**2).squeeze(-1)) /  (p_exp - 1 + 1e-9) # (b, h, w, 1)
-    #print("F_i",F_i.shape)
     sc_loss_map = 1 - F_i 
 
     return sc_loss_map
